@@ -1,7 +1,7 @@
 from pygdbmi import constants
 from pygdbmi.gdbcontroller import GdbController
 
-class gdbPipe:
+class GdbChannel:
     def __init__(self, gdbArgs: list[str]):
         if (not gdbArgs):
             raise ValueError("No GDB parameters given")

@@ -1,4 +1,4 @@
-from backend.gdbmi import gdbPipe
+from backend.gdbmi import GdbChannel
 import argparse, sys
 
 # CLI arguments
@@ -13,7 +13,7 @@ gdbParams: list[str] = [parsedArgs.executable[0]]
 if (parsedArgs.gdb_script[0]):
     gdbParams.extend(["-x", parsedArgs.gdb_script[0]])
 
-gdbChannel = gdbPipe(gdbParams)
+gdbChannel = GdbChannel(gdbParams)
 
 # Example: send a command
 
