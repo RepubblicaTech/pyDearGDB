@@ -1,4 +1,5 @@
 from backend.gdbmi import GdbChannel
+from wrappers.code import symbols
 import argparse, sys
 
 # CLI arguments
@@ -14,25 +15,12 @@ if (parsedArgs.gdb_script[0]):
     gdbParams.extend(["-x", parsedArgs.gdb_script[0]])
 
 gdbChannel = GdbChannel(gdbParams)
+gdbCodeManager = symbols.CodeManager(gdbChannel)
 
 # Example: send a command
 
-gdbChannel.sendCmd("-break-insert kstart")
-gdbChannel.sendCmd("-exec-continue")
-
-#     def wait_for_breakpoint(self):
-#         while True:
-#             try:
-#                 responses = self.gdbmi.get_gdb_response(timeout_sec=0.5)
-#             except constants.GdbTimeoutError:
-#                 print(".")
-#                 continue
-#             for r in responses:
-#                 if r["type"] == "notify" and r["message"] == "stopped":
-#                     if r["payload"].get("reason") == "breakpoint-hit":
-#                         return r  # return the breakpoint event
-    
-# print(gdbChannel.wait_for_breakpoint())
+print(gdbCodeManager.setBreakpoint("kstart"))
+print(gdbCodeManager.continueExecution())
 
 try:
     while True:

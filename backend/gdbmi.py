@@ -9,13 +9,36 @@ class GdbChannel:
         gdbCommand = ["gdb", "--interpreter=mi2"]
         gdbCommand.extend(gdbArgs)
 
-        print(gdbCommand)
+        # print(gdbCommand)
         
         self.gdbmi = GdbController(command=gdbCommand)
 
-    def sendCmd(self, command: str):
-        responses = self.gdbmi.write(command)
-        return responses
+    def readResponse(self, attempts: int):
+        att = attempts
+        responses = None
+        while True:
+            try:
+                responses = self.gdbmi.get_gdb_response(timeout_sec=1)
+            except constants.GdbTimeoutError:
+                print("Waiting...")
+                if (att > 0):
+                    att -= 1
+
+                if (att == 0):
+                    print("No more attempts.")
+                    return None
+                
+                if (att == -1):
+                    continue
+            
+            return responses
+
+    def sendCmd(self, command: str, responseTimeout: int = 1):
+        self.gdbmi.write(command)
+        return self.readResponse(responseTimeout)
+    
+    def flush(self):
+        return self.readResponse(-1)
     
     def quit(self):
         return self.sendCmd("-gdb-exit")
