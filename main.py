@@ -1,6 +1,11 @@
 from backend.gdbmi import GdbChannel
 from wrappers.code import symbols
-import argparse, sys
+import argparse, sys, os
+
+from pprint import pprint
+
+def clearscreen():
+    os.system("cls" if os.name == "nt" else "clear")
 
 # CLI arguments
 ourParser = argparse.ArgumentParser(prog=sys.argv[0], description="A custom GDB TUI made in Python")
@@ -14,13 +19,23 @@ gdbParams: list[str] = [parsedArgs.executable[0]]
 if (parsedArgs.gdb_script[0]):
     gdbParams.extend(["-x", parsedArgs.gdb_script[0]])
 
+clearscreen()
+while True:
+    bp = input("Please insert a function or *address to stop: ")
+    if (bp):
+        break
+
 gdbChannel = GdbChannel(gdbParams)
 gdbCodeManager = symbols.CodeManager(gdbChannel)
 
-# Example: send a command
+try:
+    address = int(bp)
+    gdbCodeManager.setBreakpoint(f"*{str(hex(address))}")
+except ValueError:
+    gdbCodeManager.setBreakpoint(bp)
 
-print(gdbCodeManager.setBreakpoint("kstart"))
-print(gdbCodeManager.continueExecution())
+gdbCodeManager.continueExecution()
+clearscreen()
 
 try:
     while True:
