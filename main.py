@@ -1,7 +1,9 @@
 from backend.gdbmi import GdbChannel
 from wrappers.code import symbols
-import argparse, sys, os
+from wrappers.memory import memory
+from wrappers.cpu import cpu
 
+import argparse, sys, os
 from pprint import pprint
 
 def clearscreen():
@@ -19,23 +21,23 @@ gdbParams: list[str] = [parsedArgs.executable[0]]
 if (parsedArgs.gdb_script[0]):
     gdbParams.extend(["-x", parsedArgs.gdb_script[0]])
 
+gdbChannel = GdbChannel(gdbParams)
+
 clearscreen()
 while True:
     bp = input("Please insert a function or *address to stop: ")
     if (bp):
         break
 
-gdbChannel = GdbChannel(gdbParams)
 gdbCodeManager = symbols.CodeManager(gdbChannel)
+gdbMemManager = memory.MemoryManager(gdbChannel)
+gdbCPUManager = cpu.CPUManager(gdbChannel)
 
-try:
-    address = int(bp)
-    gdbCodeManager.setBreakpoint(f"*{str(hex(address))}")
-except ValueError:
-    gdbCodeManager.setBreakpoint(bp)
-
+gdbCodeManager.setBreakpoint(bp)
 gdbCodeManager.continueExecution()
 clearscreen()
+pprint(gdbMemManager.readMemory("0xffffffff80000000", 0, 8))
+pprint(gdbCPUManager.viewRegisterValues())
 
 try:
     while True:

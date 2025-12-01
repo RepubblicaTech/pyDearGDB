@@ -20,12 +20,12 @@ class GdbChannel:
             try:
                 responses = self.gdbmi.get_gdb_response(timeout_sec=1)
             except constants.GdbTimeoutError:
-                # print("Waiting...")
+                print("Waiting...")
                 if (att > 0):
                     att -= 1
 
                 if (att == 0):
-                    # print("No more attempts.")
+                    print("No more attempts.")
                     return None
                 
                 if (att == -1):
@@ -33,12 +33,11 @@ class GdbChannel:
             
             return responses
 
-    def sendCmd(self, command: str, responseTimeout: int = 1):
-        self.gdbmi.write(command)
-        return self.readResponse(responseTimeout)
+    def sendCmd(self, command: str):
+        return self.gdbmi.write(command)
     
     def flush(self):
         return self.readResponse(-1)
     
     def quit(self):
-        return self.sendCmd("-gdb-exit", 0)
+        return self.sendCmd("-gdb-exit")
