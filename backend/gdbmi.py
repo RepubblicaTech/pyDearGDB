@@ -3,14 +3,13 @@ from pygdbmi.gdbcontroller import GdbController
 
 class GdbChannel:
     def __init__(self, gdbArgs: list[str]):
-        if (not gdbArgs):
-            raise ValueError("No GDB parameters given")
-        
         gdbCommand = ["gdb", "--interpreter=mi2"]
-        gdbCommand.extend(gdbArgs)
+        
+        if (gdbArgs):
+            gdbCommand.extend(gdbArgs)
 
         # print(gdbCommand)
-        
+
         self.gdbmi = GdbController(command=gdbCommand)
 
     def readResponse(self, attempts: int):

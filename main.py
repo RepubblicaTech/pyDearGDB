@@ -2,12 +2,10 @@ from backend.gdbmi import GdbChannel
 from wrappers.code import symbols
 from wrappers.memory import memory
 from wrappers.cpu import cpu
+from misc import misc
 
-import argparse, sys, os
+import argparse, sys
 from pprint import pprint
-
-def clearscreen():
-    os.system("cls" if os.name == "nt" else "clear")
 
 # CLI arguments
 ourParser = argparse.ArgumentParser(prog=sys.argv[0], description="A custom GDB TUI made in Python")
@@ -23,25 +21,12 @@ if (parsedArgs.gdb_script[0]):
 
 gdbChannel = GdbChannel(gdbParams)
 
-clearscreen()
-while True:
-    bp = input("Please insert a function or *address to stop: ")
-    if (bp):
-        break
+misc.clearscreen()
 
 gdbCodeManager = symbols.CodeManager(gdbChannel)
 gdbMemManager = memory.MemoryManager(gdbChannel)
 gdbCPUManager = cpu.CPUManager(gdbChannel)
 
-gdbCodeManager.setBreakpoint(bp)
-gdbCodeManager.continueExecution()
-clearscreen()
-pprint(gdbMemManager.readMemory("0xffffffff80000000", 0, 8))
-pprint(gdbCPUManager.viewRegisterValues())
+from ui import ui
 
-try:
-    while True:
-        pass
-except KeyboardInterrupt:
-    print("Quitting...")
-    gdbChannel.quit()
+ui.pyGDBApp().run()
