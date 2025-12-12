@@ -6,34 +6,31 @@ from wrappers.cpu import cpu
 import dearpygui.dearpygui as dpg
 
 class pyGDBApp:
-    def __init__(self):
+    def __init__(self, title="application"):
         dpg.create_context()
-        self.viewportId = dpg.create_viewport(title="pyGDB Debugger", width=1000, height=700)
+        self.appTitle = title
+
+    def create(self):
+        dpg.create_viewport(title='dearGDB', width=1200, height=800)
+        
+        self.codeWindow = dpg.window(label="Code View")
+        with self.codeWindow:
+            dpg.add_text("Source code + disassembly goes here")
+            
+        dpg.show_font_manager()
+
         dpg.setup_dearpygui()
         dpg.show_viewport()
+        
+        self.running: bool = True
 
-        # Enable docking so windows resize automatically
-        
-        # Main container window that fills the viewport
-        with dpg.window(label="Main Layout", width=1000, height=700, no_close=True, no_move=True, no_resize=True):
-            with dpg.group(horizontal=True):
-                # Left: Code view
-                with dpg.child_window(label="Code View", width=500, height=-1, border=True):
-                    dpg.add_text("Code / Disassembly")
-        
-                # Right side
-                with dpg.child_window(label="Right Pane", width=-1, height=-1, border=False):
-                    # Top half: CPU + Variables side by side
-                    with dpg.group(horizontal=True):
-                        with dpg.child_window(label="CPU Registers", width=-1, height=300, border=True):
-                            dpg.add_text("CPU Registers")
-                        with dpg.child_window(label="Variables", width=-1, height=300, border=True):
-                            dpg.add_text("Variables")
-        
-                    # Bottom half: Memory view
-                    with dpg.child_window(label="Memory View", width=-1, height=-1, border=True):
-                        dpg.add_text("Memory")
+    def isRunning(self):
+        self.running = dpg.is_dearpygui_running()
 
-    def run(self):
-        dpg.start_dearpygui()
+        return self.running
+    
+    def render(self):
+        dpg.render_dearpygui_frame()
+        
+    def destroy(self):
         dpg.destroy_context()
