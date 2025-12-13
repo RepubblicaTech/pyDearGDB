@@ -48,3 +48,7 @@ python3 ../pyDearGDB/main.py build/main -x path/to/script.gdb
 pyDearGDB can't do anything for now, but here's a cool preview for the current UI status:
 
 <img src="repo_assets/ui_readme.png" alt="pyDearGDB UI" width=600>
+
+BTW if you don't like how i arranged the windows, you can move them as you like (so you can reveal the background color : )
+
+<img src="repo_assets/ui_ucanmovestuff.png" alt="pyDearGDB UI with draggable windows" width=600>
