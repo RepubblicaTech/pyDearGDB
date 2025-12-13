@@ -22,6 +22,7 @@ class pyGDBApp:
 
     def create(self):
         dpg.create_viewport(title='dearGDB', width=1200, height=818)
+        dpg.set_viewport_clear_color([83, 226, 117, 255])
         
         self.appMenu = dpg.viewport_menu_bar()
         
@@ -50,7 +51,6 @@ class pyGDBApp:
                     dpg.add_menu_item(label="View code", shortcut=self.SHORTCUT_CODEVIEW)
                     dpg.add_menu_item(label="View disassembly", shortcut=self.SHORTCUT_ASMVIEW)
             dpg.add_text("Source code and/or disassembly")
-
             
         with self.cpuWindow:
             dpg.add_text("CPU registers")
