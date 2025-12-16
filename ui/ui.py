@@ -48,9 +48,10 @@ class pyGDBApp:
         with self.codeWindow:
             with dpg.menu_bar():
                 with dpg.menu(label="View"):
-                    dpg.add_menu_item(label="View code", shortcut=self.SHORTCUT_CODEVIEW)
-                    dpg.add_menu_item(label="View disassembly", shortcut=self.SHORTCUT_ASMVIEW)
-            dpg.add_text("Source code and/or disassembly")
+                    dpg.add_menu_item(label="View code", shortcut=self.SHORTCUT_CODEVIEW, check=True, default_value=True)
+                    dpg.add_menu_item(label="View disassembly", shortcut=self.SHORTCUT_ASMVIEW, check=True, default_value=False)
+            
+            
             
         with self.cpuWindow:
             dpg.add_text("CPU registers")
@@ -62,7 +63,19 @@ class pyGDBApp:
             dpg.add_text("Variables")
             
         with self.memWindow:
-            dpg.add_text("Memory")
+            with dpg.menu_bar():
+                with dpg.menu(label="View"):
+                    dpg.add_input_text(label="Address")
+                    dpg.add_slider_int(label="Bytes per row", min_value=1, max_value=32)
+                    dpg.add_button(label="Show")
+            
+            with dpg.group(horizontal=True):
+                with dpg.child_window(width=500, height=-1, border=True):
+                    dpg.add_text("Raw memory bytes")
+
+                # Bottom half
+                with dpg.child_window(width=200, height=-1, border=True):
+                    dpg.add_text("ASCII")
 
         dpg.setup_dearpygui()
         dpg.show_viewport()
@@ -70,8 +83,15 @@ class pyGDBApp:
         self.busy: bool = True
         
     def run(self):
+        # TODO: some startup code (like, initialize the code/disassembly)
+        
         while dpg.is_dearpygui_running():
-            # do anything here
+            # TODO:
+            #   - Update register values
+            #       - for which we'd automatically update the stack in case RSP changes or something happens
+            #   - Update code
+            #   - Update variables
+            #   - (eventually) update memory
             dpg.render_dearpygui_frame()
 
         dpg.destroy_context()
