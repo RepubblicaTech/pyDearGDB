@@ -2,7 +2,7 @@
 
 a custom GDB UI made with Python and [DearPyGui](https://dearpygui.readthedocs.io/en/latest/)
 
-## ⚠️⚠️ IT'S ALPHA SOFTWARE ⚠️⚠️
+## ⚠️⚠️ THIS IS ALPHA SOFTWARE ⚠️⚠️
 
 # How does it work??
 
