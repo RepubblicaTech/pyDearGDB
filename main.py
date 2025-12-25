@@ -5,7 +5,6 @@ from wrappers.cpu import cpu
 from misc import misc
 
 import argparse, sys
-from pprint import pprint
 
 APPLICATION_NAME = "dearGDB"
 
@@ -25,12 +24,11 @@ gdbChannel = GdbChannel(gdbParams)
 
 misc.clearscreen()
 
-gdbCodeManager = symbols.CodeManager(gdbChannel)
-gdbMemManager = memory.MemoryManager(gdbChannel)
-gdbCPUManager = cpu.CPUManager(gdbChannel)
-
 from ui import ui
 
-application = ui.pyGDBApp(title=APPLICATION_NAME)
+application = ui.pyGDBApp(gdbChannel, title=APPLICATION_NAME)
 application.create()
-application.run()
+try:
+    application.run()
+except KeyboardInterrupt:
+    print("Quitting...")

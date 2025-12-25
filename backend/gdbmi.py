@@ -22,13 +22,13 @@ class GdbChannel:
                 print("Waiting...")
                 if (att > 0):
                     att -= 1
-
-                if (att == 0):
-                    print("No more attempts.")
-                    return None
+                    continue
                 
                 if (att == -1):
                     continue
+                
+                print("No more attempts.")
+                return None
             
             return responses
 

@@ -7,8 +7,8 @@ class CPUManager:
         
         self.gdbMI = gdbMI
 
-    def viewRegisterNames(self):
+    def getRegisterNames(self):
         return self.gdbMI.sendCmd("-data-list-register-names")
     
-    def viewRegisterValues(self):
+    def getRegisterValues(self):
         return self.gdbMI.sendCmd(f"-data-list-register-values x")
