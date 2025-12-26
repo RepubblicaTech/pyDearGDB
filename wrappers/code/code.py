@@ -51,22 +51,17 @@ class CodeManager:
         return self.gdbMI.readResponse(-1)
     
     def stepOver(self):
-        self.gdbMI.sendCmd("-exec-next")
-        return self.gdbMI.readResponse(-1)
+        return self.gdbMI.sendCmd("-exec-next")
     
     def stepOverInstruction(self):
-        self.gdbMI.sendCmd("-exec-next-instruction")
-        return self.gdbMI.readResponse(-1)
+        return self.gdbMI.sendCmd("-exec-next-instruction")
         
     def stepInto(self):
-        self.gdbMI.sendCmd("-exec-step")
-        return self.gdbMI.readResponse(-1)
+        return self.gdbMI.sendCmd("-exec-step")
     
     def stepIntoInstruction(self):
-        self.gdbMI.sendCmd("-exec-step-instruction")
-        return self.gdbMI.readResponse(-1)
+        return self.gdbMI.sendCmd("-exec-step-instruction")
     
     def stepOut(self):
-        self.gdbMI.sendCmd("-exec-finish")
-        return self.gdbMI.readResponse(-1)
+        return self.gdbMI.sendCmd("-exec-finish")
     

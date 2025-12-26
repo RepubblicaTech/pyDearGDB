@@ -22,6 +22,8 @@ class pyGDBApp:
     COLOR_GREEN = (41, 196, 21, 255)
     COLOR_ORANGE = (237, 136, 14, 255)
     
+    LOC_THRESHOLD = 15     # how many lines of code to show
+    
     def __init__(self, gdbMI: GdbChannel, title="application"):
         dpg.create_context()
         self.appTitle = title
@@ -36,7 +38,14 @@ class pyGDBApp:
         self.sourceCode = True # check if we're debugging code
         self.waiting = False # waiting for breakpoint/next step
         
-        self.breakpointTags = []
+        self.breakpointTags: list[str] = []
+        self.locTags: list[str] = []
+        
+        self.currentFile = ""
+        self.currentLine = 0
+        self.fileStart = 0
+        self.fileEnd = 0
+        self.currentAddress = 0x0
                 
     def updateBreakpointsTable(self):
         breakpoints = self.gbdCodeManager.getBreakpointsList()
@@ -99,21 +108,45 @@ class pyGDBApp:
                 
                 self.updateBreakpointsTable()
                 
+    # TODO: change the way we step if we're in source view or disassembly view
+                
     def sendContinueExec(self):
         self.waiting = True
-        self.gbdCodeManager.continueExecution()
+        print("CONTINUING EXECUTION...")
+        response = self.gbdCodeManager.continueExecution()
+        print("OK")
+        self.updateEverything(response)
         
     def sendStepOver(self):
         self.waiting = True
-        self.gbdCodeManager.stepOver()
+        print("STEPOVER...")
+        
+        response = self.gbdCodeManager.stepOver()
+        while (response[-1]["message"] == "running"):
+            response = self.gdbMI.readResponse(-1)
+        
+        print("OK")
+        self.updateEverything(response)
         
     def sendStepInto(self):
         self.waiting = True
-        self.gbdCodeManager.stepInto()
+        print("STEPINTO...")
+        response = self.gbdCodeManager.stepInto()
+        while (response[-1]["message"] == "running"):
+            response = self.gdbMI.readResponse(-1)
+        
+        print("OK")
+        self.updateEverything(response)
         
     def sendStepOut(self):
         self.waiting = True
-        self.gbdCodeManager.stepOut()
+        print("STEPOUT...")
+        response = self.gbdCodeManager.stepOut()
+        while (response[-1]["message"] == "running"):
+            response = self.gdbMI.readResponse(-1)
+        
+        print("OK")
+        self.updateEverything(response)
         
     def create(self):
         dpg.create_viewport(title='dearGDB', width=1200, height=818)
@@ -167,6 +200,9 @@ class pyGDBApp:
             with dpg.menu_bar():
                 with dpg.menu(label="View"):
                     dpg.add_menu_item(label="Toggle code/disassembly", shortcut=self.SHORTCUT_CODEVIEW)
+                    
+            with dpg.group(tag="code_view"):
+                pass
 
         with self.cpuWindow:
             dpg.add_text("CPU registers")
@@ -192,18 +228,106 @@ class pyGDBApp:
                 with dpg.child_window(width=200, height=-1, border=True):
                     dpg.add_text("ASCII")
 
+        # initialise keyboard shortcuts
+        with dpg.handler_registry():
+            dpg.add_key_press_handler(dpg.mvKey_F5, callback=self.sendContinueExec)
+            dpg.add_key_press_handler(dpg.mvKey_F10, callback=self.sendStepOver)
+            dpg.add_key_press_handler(dpg.mvKey_F11, callback=self.sendStepInto)
+            dpg.add_key_press_handler(dpg.mvKey_LShift | dpg.mvKey_F11, callback=self.sendStepOut)
+        
         dpg.setup_dearpygui()
         dpg.show_viewport()
         
-        self.busy: bool = True
-        
-        self.waiting = True
         startup = self.gdbMI.readResponse(-1)
         for message in startup:
             if (message["type"] == "notify" and  message["message"] == "stopped"):
                 print("Program stopped.")
                 
-    # def updateCodeView(self):
+        # initialise pre-existing breakpoints (if any)
+        self.updateBreakpointsTable()
+        
+                
+    def updateEverything(self, gdbMIResponse: list[dict]):
+        self.updateCodeView(gdbMIResponse)
+                
+    def updateCodeView(self, gdbMIResponses: list[dict]):
+        pprint(gdbMIResponses)
+        
+        context = {}
+        for resp in gdbMIResponses:
+            if resp["message"] == "stopped":
+                context = resp["payload"]["frame"]
+                
+        if (context == {}):
+            return
+        
+        # if we are still in the same file, we're just quitting
+        if ((context["fullname"] == self.currentFile) and ((int(context["line"]) < self.fileEnd) and (int(context["line"]) > self.fileStart))):
+            print("We're in the same file")
+            
+            if (self.currentLine != int(context["line"])):
+                print(f"Unsetting LOC {self.currentLine}")
+                # unset current LOC
+                locTag = f"code_{self.currentLine}"
+                dpg.configure_item(locTag, color=(255, 255, 255, 255))
+                
+                print(f"Setting LOC {int(context["line"])}")
+                locTag = f"code_{int(context["line"])}"
+                if (not dpg.does_item_exist(locTag)):
+                    return
+                dpg.configure_item(locTag, color=(212, 74, 74, 255))
+                self.currentLine = int(context["line"])
+            return
+        
+        
+        # load the file
+        if (not context["fullname"]):
+            return
+        
+        print(f"Loading new file {context["file"]} (line {context["line"]})")
+
+        with open(context["file"], "r") as sourceFile:
+            if (not sourceFile):
+                return
+            
+            self.currentFile = context["fullname"]
+            self.currentLine = int(context["line"])
+        
+            # remove all current lines
+            for tag in self.locTags:
+                dpg.delete_item(tag)
+            self.locTags.clear()
+        
+            offset = self.currentLine - self.LOC_THRESHOLD if (self.currentLine - self.LOC_THRESHOLD > 0) else 1
+            
+            
+            print(f"Starting @ line {offset}")
+            
+            # so, this reads ALL lines, and returns eveything from the offset we wanted
+            usefulLOCs = sourceFile.readlines()[(offset - 1):(self.currentLine + self.LOC_THRESHOLD)]
+            self.fileStart = offset
+            self.fileEnd = self.currentLine + self.LOC_THRESHOLD
+        
+            for i in range(0, len(usefulLOCs)):
+                print(f"Line {i + offset}")
+                # read a line
+                loc = usefulLOCs[i]
+
+                # create the label
+                locTag = f"code_{i + offset}"
+                if (dpg.does_item_exist(locTag)):
+                    dpg.set_value(locTag, loc)
+                else:
+                    dpg.add_text(loc, parent="code_view", tag=locTag)
+                    self.locTags.append(locTag)
+
+                # highlight the current line
+                if (i == (self.currentLine - offset)):
+                    dpg.configure_item(locTag, color=(212, 74, 74, 255))
+                    
+            print("Done")
+        
+            sourceFile.close()
         
     def run(self):
         # TODO: some startup code (like, initialize the code/disassembly)
@@ -214,12 +338,7 @@ class pyGDBApp:
             #       - for which we'd automatically update the stack in case RSP changes or something happens
             #   - Update code
             #   - Update variables
-            #   - (eventually) update memory
-            
-            if (self.waiting):
-                # we were waiting for a breakpoint/next instruction
-                # we will update everything
-                self.waiting = False
+            #   - update memory
             
             dpg.render_dearpygui_frame()
 
