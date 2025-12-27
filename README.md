@@ -16,8 +16,8 @@ I made this scheme about 2 weeks before actually doing something, it's not accur
 
 You need these python libraries installed:
 
-- `dearpygui`: the Dear ImGui implementation for python
-- `pygdbmi`: the bridge between Python and GDB
+- `dearpygui`: (python wrappers for Dear ImGui)[https://github.com/hoffstadt/DearPyGui]
+- `pygdbmi`: (the bridge between Python and GDB)[https://cs01.github.io/pygdbmi/]
 
 # How to run
 
