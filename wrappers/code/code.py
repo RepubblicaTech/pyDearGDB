@@ -6,6 +6,10 @@ class CodeManager:
             raise ValueError("Where is my GDB MI class?")
         
         self.gdbMI = gdbMI
+        
+    def disassemble(self, startAddress: int, bytes: int):
+        endAddress = startAddress + bytes
+        return self.gdbMI.sendCmd(f"-data-disassemble -s {startAddress} -e {endAddress}")
 
     def setBreakpoint(self, position: str):
         try:
@@ -53,13 +57,13 @@ class CodeManager:
     def stepOver(self):
         return self.gdbMI.sendCmd("-exec-next")
     
-    def stepOverInstruction(self):
+    def nextInstruction(self):
         return self.gdbMI.sendCmd("-exec-next-instruction")
         
     def stepInto(self):
         return self.gdbMI.sendCmd("-exec-step")
     
-    def stepIntoInstruction(self):
+    def stepInstruction(self):
         return self.gdbMI.sendCmd("-exec-step-instruction")
     
     def stepOut(self):

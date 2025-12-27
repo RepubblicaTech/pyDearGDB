@@ -6,6 +6,9 @@ class CPUManager:
             raise ValueError("Where is my GDB MI class?")
         
         self.gdbMI = gdbMI
+        
+    def getThreadInfo(self):
+        return self.gdbMI.sendCmd("-thread-info")
 
     def getRegisterNames(self):
         return self.gdbMI.sendCmd("-data-list-register-names")
