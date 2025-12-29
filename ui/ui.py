@@ -7,6 +7,8 @@ from pprint import pprint
 
 import dearpygui.dearpygui as dpg
 
+from threading import Thread
+
 class pyGDBApp:
     SHORTCUT_GDBCONFIG = 'Ctrl+G'
     SHORTCUT_BREAKMAN = 'Ctrl+B'
@@ -118,8 +120,8 @@ class pyGDBApp:
     def sendContinueExec(self):
         print("CONTINUING EXECUTION...")
         response = self.gbdCodeManager.continueExecution()
-        print("OK")
         self.updateEverything(response)
+        print("...OK")
         
     def sendStepOver(self):
         print("STEPOVER...")
@@ -128,8 +130,8 @@ class pyGDBApp:
         while (response[-1]["message"] == "running"):
             response = self.gdbMI.readResponse(-1)
         
-        print("OK")
         self.updateEverything(response)
+        print("...OK")
         
     def sendNextInstruction(self):
         print("NEXT INSTRUCTION...")
@@ -138,8 +140,8 @@ class pyGDBApp:
         while (response[-1]["message"] == "running"):
             response = self.gdbMI.readResponse(-1)
         
-        print("OK")
         self.updateEverything(response)
+        print("...OK")
         
     def sendStepInto(self):
         print("STEPINTO...")
@@ -147,8 +149,8 @@ class pyGDBApp:
         while (response[-1]["message"] == "running"):
             response = self.gdbMI.readResponse(-1)
         
-        print("OK")
         self.updateEverything(response)
+        print("...OK")
         
     def sendStepInstruction(self):
         print("STEP INSTRUCTION...")
@@ -157,8 +159,8 @@ class pyGDBApp:
         while (response[-1]["message"] == "running"):
             response = self.gdbMI.readResponse(-1)
         
-        print("OK")
         self.updateEverything(response)
+        print("...OK")
         
     def sendStepOut(self):
         print("STEPOUT...")
@@ -166,8 +168,8 @@ class pyGDBApp:
         while (response[-1]["message"] == "running"):
             response = self.gdbMI.readResponse(-1)
         
-        print("OK")
         self.updateEverything(response)
+        print("...OK")
         
     def toggleCodeDisasm(self):
         self.sourceCode = not self.sourceCode
@@ -202,7 +204,7 @@ class pyGDBApp:
                 dpg.add_menu_item(label="Next instruction", shortcut=self.SHORTCUT_NEXTASM, callback=self.sendNextInstruction)
                 dpg.add_menu_item(label="Step instruction", shortcut=self.SHORTCUT_STEPINTOASM, callback=self.sendStepInstruction)
                 
-        with dpg.window(label="Breakpoints manager", modal=True, tag="breakman_window", show=False, width=500):
+        with dpg.window(label="Breakpoints manager", modal=True, tag="breakman_window", show=False, height=400, width=500):
             self.breakpointsTable = dpg.table(label="Breakpoints", header_row=True, tag="breakpoints_table", policy=dpg.mvTable_SizingStretchProp)
             with self.breakpointsTable:
                 dpg.add_table_column(label="B. number", width_fixed=False)
@@ -234,7 +236,8 @@ class pyGDBApp:
                 pass
 
         with self.cpuWindow:
-            dpg.add_text("CPU registers")
+            with dpg.group(tag="cpu_regs"):
+                pass
             
         with self.stackWindow:
             dpg.add_text("Stack view")
@@ -279,8 +282,59 @@ class pyGDBApp:
         self.updateBreakpointsTable()
                 
     def updateEverything(self, gdbMIResponse: list[dict]):
-        self.updateSourceView(gdbMIResponse, self.sourceCode)
-                
+        sourceThread = Thread(target=self.updateSourceView, args=(gdbMIResponse, self.sourceCode))
+        regsThread = Thread(target=self.updateCPURegs)
+        
+        sourceThread.start()
+        regsThread.start()
+        
+        sourceThread.join()
+        regsThread.join()
+        
+    def updateCPURegs(self):
+        # get register names
+        regNames: list = []
+        responses = self.gdbCPUManager.getRegisterNames()
+        for response in responses:
+            if (response["message"] == "done" and response["type"] == "result"):
+                regNames = response["payload"]["register-names"]
+        # get register values
+        regValues: list[dict] = []
+        responses = self.gdbCPUManager.getRegisterValues()
+        for response in responses:
+            if (response["message"] == "done" and response["type"] == "result"):
+                regValues = response["payload"]["register-values"]
+        
+        changedRegs: list = []
+        # get changed regs
+        responses = self.gdbCPUManager.showUpdatedRegisters()
+        for response in responses:
+            if (response["message"] == "done" and response["type"] == "result"):
+                changedRegs = response["payload"]["changed-registers"]
+        
+        for regValue in regValues:
+            regNumber = regValue["number"]
+            regValue = regValue["value"]
+            
+            try:
+                changedRegs.index(regNumber)
+                # if we don't get ValueError, then we just set the color for the label
+                labelColor = self.COLOR_RED
+            except ValueError:
+                labelColor = (255, 255, 255, 255)
+            
+            regName = regNames[int(regNumber)]
+            
+            # make a label for each register
+            regLabel = f"{regName}={regValue}"
+            # make it a nice text :)
+            regTag = f"reg_{regName}"
+            if (dpg.does_item_exist(regTag)):
+                dpg.set_value(regTag, regLabel)
+                dpg.configure_item(regTag, color=labelColor)
+            else:
+                dpg.add_text(regLabel, parent="cpu_regs", tag=regTag, color=labelColor)
+
     def updateSourceView(self, gdbMIResponses: list[dict], viewSource: bool):
         context = {}
         

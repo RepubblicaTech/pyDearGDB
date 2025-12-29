@@ -15,3 +15,6 @@ class CPUManager:
     
     def getRegisterValues(self):
         return self.gdbMI.sendCmd(f"-data-list-register-values x")
+    
+    def showUpdatedRegisters(self):
+        return self.gdbMI.sendCmd("-data-list-changed-registers")
