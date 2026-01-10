@@ -6,3 +6,9 @@ class SymbolsManager:
             raise ValueError("Where is my GDB MI class?")
         
         self.gdbMI = gdbMI
+
+    def showStackVariables(self):
+        return self.gdbMI.sendCmd("-stack-list-variables --all-values")
+    
+    def getVariableValue(self, varName: str):
+        return self.gdbMI.sendCmd(f"-data-evaluate-expression {varName}")

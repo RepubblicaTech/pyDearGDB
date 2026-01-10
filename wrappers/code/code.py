@@ -37,15 +37,28 @@ class CodeManager:
         breakpointsBody = breakpointsResponse["payload"]["BreakpointTable"]["body"]
         
         for breakpoint in breakpointsBody:
-            breakpoints.append({
+            breakpointDict = {
                 "bnum": breakpoint["number"],
-                "where": f"{breakpoint["func"]}",
+                "where": None,
                 "address": breakpoint["addr"],
-                "file": breakpoint["file"],
-                "fullpath": breakpoint["fullname"],
-                "line": breakpoint["line"],
+                "file": None,
+                "fullpath": None,
+                "line": None,
                 "enabled": True if breakpoint["enabled"] == "y" else False
-            })
+            }
+            
+            try:
+                breakpointDict["where"] = f"{breakpoint["func"]}"
+                
+                breakpointDict["file"] = breakpoint["file"]
+                breakpointDict["line"] = breakpoint["line"]
+                breakpointDict["fullpath"] = breakpoint["fullname"]
+            except KeyError:
+                breakpointDict["where"] = f"{breakpoint["at"]}"
+                breakpointDict["file"] = "???"
+                breakpointDict["line"] = "???"
+            
+            breakpoints.append(breakpointDict)
         
         return breakpoints
         

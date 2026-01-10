@@ -243,7 +243,12 @@ class pyGDBApp:
             dpg.add_text("Stack view")
             
         with self.symWindow:
-            dpg.add_text("Variables")
+            dpg.add_input_text(hint="variable name", width=150)
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="Show")
+                dpg.add_button(label="Clear output")
+            with dpg.group(tag="variables_group"):
+                pass
             
         with self.memWindow:
             with dpg.menu_bar():
@@ -260,15 +265,7 @@ class pyGDBApp:
                 with dpg.child_window(width=200, height=-1, border=True):
                     dpg.add_text("ASCII")
 
-        # initialise keyboard shortcuts
-        with dpg.handler_registry():
-            dpg.add_key_release_handler(dpg.mvKey_LControl | dpg.mvKey_B, callback=lambda: dpg.configure_item("breakman_window", show=True))
-            dpg.add_key_release_handler(dpg.mvKey_F5, callback=self.sendContinueExec)
-            dpg.add_key_release_handler(dpg.mvKey_F10, callback=self.sendStepOver)
-            dpg.add_key_release_handler(dpg.mvKey_F11, callback=self.sendStepInto)
-            dpg.add_key_release_handler(dpg.mvKey_LShift | dpg.mvKey_F11, callback=self.sendStepOut)
-            dpg.add_key_release_handler(dpg.mvKey_LAlt | dpg.mvKey_F10, callback=self.sendNextInstruction)
-            dpg.add_key_release_handler(dpg.mvKey_LAlt | dpg.mvKey_F11, callback=self.sendStepInstruction)
+        # TODO: keyboard shortcuts
         
         dpg.setup_dearpygui()
         dpg.show_viewport()
@@ -281,16 +278,52 @@ class pyGDBApp:
         # initialise pre-existing breakpoints (if any)
         self.updateBreakpointsTable()
                 
-    def updateEverything(self, gdbMIResponse: list[dict]):
-        sourceThread = Thread(target=self.updateSourceView, args=(gdbMIResponse, self.sourceCode))
-        regsThread = Thread(target=self.updateCPURegs)
+    def updateEverything(self, gdbMIResponses: list[dict]):
+        context = {}
         
-        sourceThread.start()
-        regsThread.start()
+        if (gdbMIResponses):
+            pprint(gdbMIResponses)
+
+            for resp in gdbMIResponses:
+                if resp["message"] == "stopped":
+                    context = resp["payload"]["frame"]
+
+            if (context == {}):
+                return
+
+        else:
+            responses = self.gdbCPUManager.getThreadInfo()
+            pprint(responses)
+            for response in responses:
+                if (response["type"] == "result" and response["message"] == "done"):
+                    payload = response["payload"]
+            
+            if (not payload):
+                return
+            
+            currentThread = payload["current-thread-id"]
+            
+            for thread in payload["threads"]:
+                if thread["id"] != currentThread:
+                    continue
+                
+                context = thread["frame"]
+                
+            if (context == {}):
+                return
         
-        sourceThread.join()
-        regsThread.join()
+        self.updateSourceView(context, self.sourceCode)
+        self.updateCPURegs()
         
+        # sourceThread = Thread(target=self.updateSourceView, args=(gdbMIResponse, self.sourceCode))
+        # regsThread = Thread(target=self.updateCPURegs)
+        
+        # sourceThread.start()
+        # regsThread.start()
+        
+        # regsThread.join()
+        # sourceThread.join()
+
     def updateCPURegs(self):
         # get register names
         regNames: list = []
@@ -335,40 +368,10 @@ class pyGDBApp:
             else:
                 dpg.add_text(regLabel, parent="cpu_regs", tag=regTag, color=labelColor)
 
-    def updateSourceView(self, gdbMIResponses: list[dict], viewSource: bool):
-        context = {}
-        
-        if (gdbMIResponses):
-            pprint(gdbMIResponses)
+    def updateSourceView(self, currentFrame: dict, viewSource: bool):
+        if (not currentFrame):
+            return
 
-            for resp in gdbMIResponses:
-                if resp["message"] == "stopped":
-                    context = resp["payload"]["frame"]
-
-            if (context == {}):
-                return
-
-        else:
-            responses = self.gdbCPUManager.getThreadInfo()
-            pprint(responses)
-            for response in responses:
-                if (response["type"] == "result" and response["message"] == "done"):
-                    payload = response["payload"]
-            
-            if (not payload):
-                return
-            
-            currentThread = payload["current-thread-id"]
-            
-            for thread in payload["threads"]:
-                if thread["id"] != currentThread:
-                    continue
-                
-                context = thread["frame"]
-                
-            if (context == {}):
-                return
-    
         if (viewSource):
             # hide disasm tags
             for tag in self.disasmTags:
@@ -378,35 +381,35 @@ class pyGDBApp:
             for tag in self.locTags:
                 dpg.configure_item(tag, show=True)
             
-            if ((context["file"] == self.currentFile) and ((int(context["line"]) < self.fileEnd) and (int(context["line"]) > self.fileStart))):
+            if ((currentFrame["file"] == self.currentFile) and ((int(currentFrame["line"]) < self.fileEnd) and (int(currentFrame["line"]) > self.fileStart))):
             # if we are still in the same file, we're just quitting
                 print("We're in the same file")
                 
-                if (self.currentLine != int(context["line"])):
+                if (self.currentLine != int(currentFrame["line"])):
                     print(f"Unsetting LOC {self.currentLine}")
                     # unset current LOC
                     locTag = f"code_{self.currentLine}"
                     dpg.configure_item(locTag, color=(255, 255, 255, 255))
                     
-                    print(f"Setting LOC {int(context["line"])}")
-                    locTag = f"code_{int(context["line"])}"
+                    print(f"Setting LOC {int(currentFrame["line"])}")
+                    locTag = f"code_{int(currentFrame["line"])}"
                     if (not dpg.does_item_exist(locTag)):
                         return
     
                     dpg.configure_item(locTag, color=self.COLOR_RED)
-                    self.currentLine = int(context["line"])
+                    self.currentLine = int(currentFrame["line"])
                 return
             
-            self.currentFile = context["file"]
-            self.currentLine = int(context["line"])            
+            self.currentFile = currentFrame["file"]
+            self.currentLine = int(currentFrame["line"])            
             
             # load the file
-            if (not context["fullname"]):
+            if (not currentFrame["fullname"]):
                 return
 
-            print(f"Loading new file {context["file"]} (line {context["line"]})")
+            print(f"Loading new file {currentFrame["file"]} (line {currentFrame["line"]})")
 
-            sourceFile = open(context["fullname"], "r")
+            sourceFile = open(currentFrame["fullname"], "r")
 
             if (not sourceFile):
                 return
@@ -454,28 +457,28 @@ class pyGDBApp:
             
             # are we still inside the address range?
             print(f"disasm START CURRENT END: {hex(self.disasmStart)} {hex(self.currentDisasmAddress)} {hex(self.disasmEnd)}")
-            print(f"disasm NOW: {context["addr"]}")
+            print(f"disasm NOW: {currentFrame["addr"]}")
             
-            if ((int(context["addr"], base=16) > self.disasmStart) and (int(context["addr"], base=16) < self.disasmEnd)):
+            if ((int(currentFrame["addr"], base=16) > self.disasmStart) and (int(currentFrame["addr"], base=16) < self.disasmEnd)):
                 
-                if (int(context["addr"], base=16) != self.currentDisasmAddress):
+                if (int(currentFrame["addr"], base=16) != self.currentDisasmAddress):
                     tag = f"asm_{self.currentDisasmAddress - self.disasmStart}"
                 
                     print(f"Unsetting disassembly @ {hex(self.currentDisasmAddress)}")
                     dpg.configure_item(tag, color=(255, 255, 255, 255))
                     
-                    tag = f"asm_{int(context["addr"], base=16) - self.disasmStart}"
+                    tag = f"asm_{int(currentFrame["addr"], base=16) - self.disasmStart}"
                     if (not dpg.does_item_exist(tag)):
                         return
-                    print(f"Setting disassembly @ {context["addr"]}")
+                    print(f"Setting disassembly @ {currentFrame["addr"]}")
                     dpg.configure_item(tag, color=self.COLOR_RED)
-                    self.currentDisasmAddress = int(context["addr"], base=16)
+                    self.currentDisasmAddress = int(currentFrame["addr"], base=16)
                 return
             
-            self.currentDisasmAddress = int(context["addr"], base=16)
+            self.currentDisasmAddress = int(currentFrame["addr"], base=16)
             
             # disassemble more memory
-            self.disasmStart = (int(context["addr"], base=16) - (self.LOC_THRESHOLD))
+            self.disasmStart = (int(currentFrame["addr"], base=16) - (self.LOC_THRESHOLD))
             responses = self.gbdCodeManager.disassemble(self.disasmStart, (self.LOC_THRESHOLD * 8))
             
             pprint(responses)
