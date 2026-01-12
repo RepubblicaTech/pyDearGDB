@@ -194,6 +194,7 @@ class pyGDBApp:
             with dpg.menu(label="File"):
                 # to potentially set up GDB from the GUI
                 dpg.add_menu_item(label="GDB Configuration", shortcut=self.SHORTCUT_GDBCONFIG)
+                dpg.add_menu_item(label="magic button", callback=lambda: dpg.configure_item("magic_window", show=True))
                 
             with dpg.menu(label="Debug"):
                 dpg.add_menu_item(label="Manage breakpoints", shortcut=self.SHORTCUT_BREAKMAN, callback=lambda: dpg.configure_item("breakman_window", show=True))
@@ -226,6 +227,12 @@ class pyGDBApp:
             
             self.bpManStatusText = dpg.add_text("")
             dpg.add_button(label="Close", callback=lambda: dpg.configure_item("breakman_window", show=False))
+            
+        with dpg.window(label="Magic Debug Window 1000", modal=True, tag="magic_window", show=False, height=200, width=500):
+            with dpg.group(horizontal=True):
+                dpg.add_text("Command:")
+                dpg.add_input_text(width=400, tag="magic_command")
+            dpg.add_button(label="Send GDB command", callback=self.doMagic)
         
         with self.codeWindow:
             with dpg.menu_bar():
@@ -243,9 +250,9 @@ class pyGDBApp:
             dpg.add_text("Stack view")
             
         with self.symWindow:
-            dpg.add_input_text(hint="variable name", width=150)
+            dpg.add_input_text(hint="variable name", width=150, tag="varname_input")
             with dpg.group(horizontal=True):
-                dpg.add_button(label="Show")
+                dpg.add_button(label="Show", callback=self.evaluateVariable)
                 dpg.add_button(label="Clear output")
             with dpg.group(tag="variables_group"):
                 pass
@@ -277,6 +284,11 @@ class pyGDBApp:
                 
         # initialise pre-existing breakpoints (if any)
         self.updateBreakpointsTable()
+        
+    def doMagic(self):
+        command = dpg.get_value("magic_command")
+        responses = self.gdbMI.sendCmd(command)
+        pprint(responses)
                 
     def updateEverything(self, gdbMIResponses: list[dict]):
         context = {}
@@ -323,6 +335,11 @@ class pyGDBApp:
         
         # regsThread.join()
         # sourceThread.join()
+        
+    def evaluateVariable(self):
+        varName = dpg.get_value("varname_input")
+        responses = self.gdbSymManager.getVariableValue(varName)
+        pprint(responses)
 
     def updateCPURegs(self):
         # get register names
@@ -429,7 +446,6 @@ class pyGDBApp:
             self.fileEnd = self.currentLine + self.LOC_THRESHOLD
 
             for i in range(0, len(usefulLOCs)):
-                print(f"Line {i + offset}")
                 # read a line
                 loc = usefulLOCs[i]
 
@@ -443,8 +459,10 @@ class pyGDBApp:
 
                 # highlight the current line
                 if (i == (self.currentLine - offset)):
+                    print(f"> Line {i + offset}")
                     dpg.configure_item(locTag, color=self.COLOR_RED)
-
+                else:
+                    print(f"Line {i + offset}")
                 sourceFile.close()
         else:
             # hide source tags
